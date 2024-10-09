@@ -16,7 +16,4 @@ build:
     - ls
     - echo $tmp
     - cp -Rf * /data_tms/gitlab-runner/express-v2/$tmp/express-root || FAILED=true
-  only:
-    - /^dev_\d{2}\.\d{2}\.\d{4}_v\d+$/
-    - /^stag_\d{2}\.\d{2}\.\d{4}_v\d+$/
-    - /^prod_\d{2}\.\d{2}\.\d{4}_v\d+$/
+
