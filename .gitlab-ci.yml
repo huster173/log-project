@@ -27,7 +27,7 @@ build:
 #     - dev-wms-shell
 #   script:
 #     - cd /data_tms/gitlab-runner/express-v2/${CI_PROJECT_NAME}
-#     - DOCKER_BUILDKIT=1 docker run -u 1003:1003 --rm --network host -v `pwd`:/app --workdir="/app"  sonarsource/sonar-scanner-cli sonar-scanner -X $SONAR_SCANNER_OPTS -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.login="$SONAR_TOKEN" -Dsonar.java.binaries="./main/target/classes" -Dsonar.sources="." -Dsonar.projectKey="${CI_PROJECT_NAME}" -Dsonar.projectName="$CI_PROJECT_NAME" -Dsonar.projectVersion="${CI_COMMIT_TAG}_${CI_COMMIT_SHORT_SHA}";
+#     - DOCKER_BUILDKIT=1 docker run -u 996:994 --rm --network host -v `pwd`:/app --workdir="/app"  sonarsource/sonar-scanner-cli:5.0.1 sonar-scanner -X $SONAR_SCANNER_OPTS -Dsonar.host.url="$STAG_SONAR_HOST_URL" -Dsonar.login="$STAG_SONAR_TOKEN" -Dsonar.java.binaries="." -Dsonar.sources="./src/" -Dsonar.projectKey="${CI_PROJECT_NAME}" -Dsonar.projectName="$CI_PROJECT_NAME" -Dsonar.projectVersion="${CI_COMMIT_TAG}_${CI_COMMIT_SHORT_SHA}";
 #   only:
 #     - tags
 
