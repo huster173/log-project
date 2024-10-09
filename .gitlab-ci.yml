@@ -1,5 +1,7 @@
 stages:
   - build
+  # - sonar
+
 build:       
   stage: build
   allow_failure: false
@@ -14,4 +16,18 @@ build:
     - pwd
     - ls
     - echo $tmp
-    - cp -Rf * /data/gitlab-runner/express-v2/$tmp/express-root || FAILED=true
+    - cp -Rf * /data_tms/gitlab-runner/express-v2/$tmp/express-root || FAILED=true
+
+# sonar:
+#   stage: sonar
+#   allow_failure: false
+#   variables:
+#     GIT_STRATEGY: none
+#   tags:
+#     - dev-wms-shell
+#   script:
+#     - cd /data_tms/gitlab-runner/express-v2/${CI_PROJECT_NAME}
+#     - DOCKER_BUILDKIT=1 docker run -u 1003:1003 --rm --network host -v `pwd`:/app --workdir="/app"  sonarsource/sonar-scanner-cli sonar-scanner -X $SONAR_SCANNER_OPTS -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.login="$SONAR_TOKEN" -Dsonar.java.binaries="./main/target/classes" -Dsonar.sources="." -Dsonar.projectKey="${CI_PROJECT_NAME}" -Dsonar.projectName="$CI_PROJECT_NAME" -Dsonar.projectVersion="${CI_COMMIT_TAG}_${CI_COMMIT_SHORT_SHA}";
+#   only:
+#     - tags
+
