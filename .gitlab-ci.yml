@@ -10,10 +10,9 @@ build:
   after_script:
     - triggercommon=${CI_JOB_STATUS}
   tags:
-    - dev-tms-shell
+    - dev-express-shell
   script:
     - pwd
     - ls
     - echo $tmp
     - cp -Rf * /data_tms/gitlab-runner/express-v2/$tmp/express-root || FAILED=true
-
