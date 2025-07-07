@@ -11,7 +11,7 @@ build:
   after_script:
     - triggercommon=${CI_JOB_STATUS}
   tags:
-    - dev-express-shell
+    - dev-exp-shell
   script:
     - pwd
     - ls
