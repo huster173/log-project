@@ -161,6 +161,6 @@ open http://localhost:5601
 
 
 > **Lưu ý:** Chụp màn hình ở **3 thời điểm** để so sánh:
-> 1. **Baseline** — trước khi chạy
-> 2. **Peak** — trong khi hệ thống đang chạy tải cao
-> 3. **Release** — sau khi dừng hệ thống
+> 1. trước khi chạy
+> 2. trong khi hệ thống đang chạy 
+> 3. sau khi dừng hệ thống
