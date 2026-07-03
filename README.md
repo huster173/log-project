@@ -142,12 +142,6 @@ open http://localhost:5601
 <img width="255" height="159" alt="image" src="https://github.com/user-attachments/assets/71aa2905-60e0-47cf-a925-77ec0832fb04" />
 <img width="252" height="152" alt="image" src="https://github.com/user-attachments/assets/f64975f0-a682-42ab-818f-411fdee431fa" />
 
-```bash
-# Live stats containers
-docker stats log-backend-1 log-backend-2 log-backend-3 postgres elasticsearch
-
-# JVM heap — đọc trực tiếp từ dashboard console
-| LOG BACKEND  elapsed=42s  JVM mem: 187MB / 512MB |
 ```
 
 Chụp màn hình **3 thời điểm**: trước khi chạy (baseline) → trong khi chạy (peak) → sau khi dừng (release).
