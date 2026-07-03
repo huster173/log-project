@@ -3,20 +3,20 @@ package org.example.backend;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Drains LogQueue in batches and inserts into DB with exponential backoff retry.
+ * Drains LogQueue in batches and writes each batch to every configured LogSink
+ * (Postgres = system of record, Elasticsearch = search/visualization) in parallel,
+ * each with its own exponential backoff retry so one sink's trouble doesn't stall the other.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,9 +26,10 @@ public class LogBatchConsumer {
     private final ConsumerProperties config;
     private final LogQueue           logQueue;
     private final BackendStats       stats;
-    private final JdbcTemplate       jdbc;
+    private final List<LogSink>      sinks;
 
     private final AtomicInteger threadId = new AtomicInteger();
+    private ExecutorService sinkExecutor;
 
     @PostConstruct
     void start() {
@@ -41,12 +42,22 @@ public class LogBatchConsumer {
                 }
         );
 
+        // Sized so every consumer thread can have all sinks writing concurrently at once.
+        sinkExecutor = Executors.newFixedThreadPool(
+                config.getConsumerThreads() * Math.max(sinks.size(), 1),
+                r -> {
+                    Thread t = new Thread(r, "log-sink-writer");
+                    t.setDaemon(true);
+                    return t;
+                }
+        );
+
         for (int i = 0; i < config.getConsumerThreads(); i++) {
             pool.submit(this::consumeLoop);
         }
 
-        log.info("Started {} consumer threads, batch size = {}",
-                config.getConsumerThreads(), config.getBatchSize());
+        log.info("Started {} consumer threads, batch size = {}, sinks = {}",
+                config.getConsumerThreads(), config.getBatchSize(), sinks.stream().map(LogSink::name).toList());
     }
 
     private void consumeLoop() {
@@ -57,7 +68,7 @@ public class LogBatchConsumer {
                 int drained = logQueue.drainTo(buffer, config.getBatchSize());
 
                 if (drained > 0) {
-                    insertWithRetry(buffer);
+                    writeToAllSinks(List.copyOf(buffer));
                 } else {
                     Thread.sleep(5);
                 }
@@ -70,27 +81,42 @@ public class LogBatchConsumer {
         }
     }
 
-    private void insertWithRetry(List<LogRequest> batch) {
+    private void writeToAllSinks(List<LogRequest> batch) throws InterruptedException {
+        List<Future<?>> futures = new ArrayList<>(sinks.size());
+        for (LogSink sink : sinks) {
+            futures.add(sinkExecutor.submit(() -> insertWithRetry(sink, batch)));
+        }
+        for (Future<?> f : futures) {
+            try {
+                f.get();
+            } catch (ExecutionException e) {
+                log.error("Sink write task failed unexpectedly", e.getCause());
+            }
+        }
+    }
+
+
+    private void insertWithRetry(LogSink sink, List<LogRequest> batch) {
         int attempt = 0;
         while (true) {
             try {
-                batchInsert(batch);
-                stats.addInserted(batch.size());
+                sink.insert(batch);
+                stats.addInserted(sink.name(), batch.size());
                 return;
             } catch (Exception e) {
                 attempt++;
-                stats.incrementRetries();
+                stats.incrementRetries(sink.name());
 
                 if (attempt > config.getMaxRetries()) {
-                    stats.addFailed(batch.size());
-                    log.error("Batch of {} logs dropped after {} retries: {}",
-                            batch.size(), config.getMaxRetries(), e.getMessage());
+                    stats.addFailed(sink.name(), batch.size());
+                    log.error("[{}] Batch of {} logs dropped after {} retries: {}",
+                            sink.name(), batch.size(), config.getMaxRetries(), e.getMessage());
                     return;
                 }
 
                 long backoff = config.getInitialBackoffMs() * (1L << (attempt - 1));
-                log.warn("Insert attempt {} failed ({}), retrying in {}ms",
-                        attempt, e.getMessage(), backoff);
+                log.warn("[{}] Insert attempt {} failed ({}), retrying in {}ms",
+                        sink.name(), attempt, e.getMessage(), backoff);
                 try {
                     Thread.sleep(backoff);
                 } catch (InterruptedException ie) {
@@ -99,29 +125,5 @@ public class LogBatchConsumer {
                 }
             }
         }
-    }
-
-    private void batchInsert(List<LogRequest> batch) {
-        final long receivedAt = System.currentTimeMillis();
-        jdbc.batchUpdate(
-                "INSERT INTO log_entries (timestamp, ip, method, path, status, received_at) VALUES (?,?,?,?,?,?)",
-                new BatchPreparedStatementSetter() {
-                    @Override
-                    public void setValues(PreparedStatement ps, int i) throws SQLException {
-                        LogRequest r = batch.get(i);
-                        ps.setLong(1, r.getTimestamp());
-                        ps.setString(2, r.getIp());
-                        ps.setString(3, r.getMethod());
-                        ps.setString(4, r.getPath());
-                        ps.setInt(5, r.getStatus());
-                        ps.setLong(6, receivedAt);
-                    }
-
-                    @Override
-                    public int getBatchSize() {
-                        return batch.size();
-                    }
-                }
-        );
     }
 }

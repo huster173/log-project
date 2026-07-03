@@ -19,8 +19,9 @@
             <maxHistory>7</maxHistory>
         </rollingPolicy>
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <!-- Add service name to every JSON log line -->
-            <customFields>{"service":"log-backend"}</customFields>
+            <!-- Add service name + replica identity to every JSON log line, so Kibana
+                 can break down metrics (e.g. TPS) per replica instead of lumping all 3 together. -->
+            <customFields>{"service":"log-backend","instance":"${LOG_FILE:-app}"}</customFields>
         </encoder>
     </appender>
 

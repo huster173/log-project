@@ -1,26 +1,12 @@
 services:
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
-    environment:
-      - POSTGRES_DB=logdb
-      - POSTGRES_USER=loguser
-      - POSTGRES_PASSWORD=logpass
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    networks:
-      - elk
-
   # ── Application (3 stateless replicas behind an LB) ─────────────────────────
   log-backend-1: &log-backend
     build: .
     container_name: log-backend-1
     environment:
       - LOG_FILE=app-1
-      - DB_HOST=postgres
+      - ES_HOST=elasticsearch
     expose:
       - "8081"
     volumes:
@@ -30,21 +16,21 @@ services:
       - elk
     depends_on:
       - logstash
-      - postgres
+      - elasticsearch
 
   log-backend-2:
     <<: *log-backend
     container_name: log-backend-2
     environment:
       - LOG_FILE=app-2
-      - DB_HOST=postgres
+      - ES_HOST=elasticsearch
 
   log-backend-3:
     <<: *log-backend
     container_name: log-backend-3
     environment:
       - LOG_FILE=app-3
-      - DB_HOST=postgres
+      - ES_HOST=elasticsearch
 
   log-backend-lb:
     image: nginx:1.27-alpine
@@ -116,7 +102,6 @@ services:
 volumes:
   es_data:
   logs_data:
-  pg_data:
 
 networks:
   elk:

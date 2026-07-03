@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan
 public class LogBackendApplication {
 
-
     public static void main(String[] args) {
         SpringApplication.run(LogBackendApplication.class, args);
     }
